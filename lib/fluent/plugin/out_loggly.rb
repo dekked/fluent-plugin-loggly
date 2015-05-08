@@ -1,6 +1,6 @@
 =begin
-  
-  Copyright (C) 2012 Patrik Antonsson 
+
+  Copyright (C) 2012 Patrik Antonsson
 
   Licensed to the Apache Software Foundation (ASF) under one
   or more contributor license agreements.  See the NOTICE file
@@ -45,16 +45,23 @@ class LogglyOutput < Fluent::Output
   def emit(tag, es, chain)
     chain.next
     es.each {|time,record|
+      current_uri = @uri
+      # If providing loggly tags, change the URI we use
+      if record["loggly_tags"]
+        current_uri = @uri + "tag/#{record["loggly_tags"]}/"
+        record.delete("loggly_tags")
+        $log.debug current_uri
+      end
       record_json = record.to_json
       $log.debug "Record sent #{record_json}"
-      post = Net::HTTP::Post.new @uri.path
+      post = Net::HTTP::Post.new current_uri.path
       post.body = record_json
       begin
-        response = @http.request @uri, post
+        response = @http.request current_uri, post
         $log.debug "HTTP Response code #{response.code}"
         $log.error response.body if response.code != "200"
       rescue
-        $log.error "Error connecting to loggly verify the url #{@loggly_url}"
+        $log.error "Error connecting to loggly verify the url #{current_uri}"
       end
     }
   end
